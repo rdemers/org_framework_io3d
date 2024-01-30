@@ -1,6 +1,12 @@
-# io3d
+# org_framework_io3d
 
-A new Flutter FFI plugin project.
+IO|3D is a small 3D engine with physics and sound for flutter framework.
+
+## Creation of this project
+
+The following command has been used for the initial creation of this projet.
+
+* flutter create --org org.ioframework --template=plugin_ffi --platforms=android,ios,linux,macos,windows io3d
 
 ## Getting Started
 

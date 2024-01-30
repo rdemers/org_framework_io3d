@@ -1,10 +1,15 @@
 
+
+library io3d;
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
 import 'io3d_bindings_generated.dart';
+
+export 'vulkan/header.dart';
+export 'vulkan/vk_api.dart';
 
 /// A very short-lived native function.
 ///
