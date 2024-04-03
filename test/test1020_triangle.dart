@@ -34,15 +34,20 @@ import 'dart:math';
 import 'package:test/test.dart';
 import 'package:logger/logger.dart';
 import 'package:ffi/ffi.dart';
-import 'package:glfw/glfw.dart';
+import 'package:glfw3/glfw3.dart';
 import 'package:io3d/io3d.dart';
 import 'package:io3d/ffi_utils.dart';
 
-int physicalDeviceCount = 0;
+const int maxFrames = 2;
+const int uint64Max = 2 ^ 64;
+const int windowHeight = 600;
+const int windowWidth = 800;
+
 int familyCount = 0;
-int graphicsFamily = -1;
-int presentFamily = -1;
 int currentFrame = 0;
+int presentFamily = -1;
+int graphicsFamily = -1;
+int physicalDeviceCount = 0;
 Pointer<VkPhysicalDevice> physicalDevice = nullptr;
 
 late Pointer<GLFWwindow> window;
@@ -54,31 +59,22 @@ late Pointer<VkDevice> device;
 late Pointer<VkQueue> graphicsQueue;
 late Pointer<VkQueue> presentQueue;
 late Pointer<Pointer<VkSwapchainKHR>> swapChain;
-
 late List<Pointer<VkImage>> swapChainImages;
 late int swapChainImagesCount;
 late int swapChainImageFormat;
 late VkExtent2D swapChainExtent;
 late List<Pointer<Pointer<VkImageView>>> swapChainImageViews;
 late List<Pointer<VkFramebuffer>> swapChainFramebuffers;
-
 late Pointer<VkRenderPass> renderPass;
 late Pointer<VkPipelineLayout> pipelineLayout;
 late Pointer<VkPipeline> graphicsPipeline;
-
 late Pointer<VkCommandPool> commandPool;
 late Pointer<Pointer<VkCommandBuffer>> commandBuffers;
 late int commandBuffersCount;
-
 late Pointer<Pointer<VkSemaphore>> imageAvailableSemaphores;
 late Pointer<Pointer<VkSemaphore>> renderFinishedSemaphores;
 late List<Pointer<Pointer<VkFence>>> inFlightFences;
 late List<Pointer<Pointer<VkFence>>> imagesInFlight;
-
-const int windowWidth = 800;
-const int windowHeight = 600;
-const int maxFrames = 2;
-const int uint64Max = 2 ^ 64;
 
 void main() {
   test('Triangle Test', () {
@@ -93,7 +89,7 @@ void initWindow() {
   glfwInit();
   glfwVulkanSupported();
 
-  final title = 'Flutter/Dart FFI + GLFW + Vulkan'.toNativeUtf8();
+  const title = 'Flutter/Dart FFI + GLFW + Vulkan';
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   window = glfwCreateWindow(windowWidth, windowHeight, title, nullptr, nullptr);
@@ -117,11 +113,11 @@ void init() {
 }
 
 void loop() {
-  while (glfwWindowShouldClose(window) != GLFW_TRUE) {
-    glfwPollEvents();
+  double limitTime = glfwGetTime() + (1*60);
+  while (glfwWindowShouldClose(window) == GLFW_FALSE && (limitTime > glfwGetTime()) ) {
     draw();
+    glfwPollEvents(); // Must poll to detect window close event.
   }
-
   vkDeviceWaitIdle(device);
 }
 
@@ -141,12 +137,11 @@ void getInstanceExtensions() {
 
   extensionsCount = calloc<Int32>();
   vkEnumerateInstanceExtensionProperties(nullptr, extensionsCount, nullptr);
+
   final props = calloc<VkExtensionProperties>(extensionsCount.value);
   vkEnumerateInstanceExtensionProperties(nullptr, extensionsCount, props);
 
-  final names = List<String>.generate(extensionsCount.value,
-      (i) => props.elementAt(i).ref.extensionName.toDartString(256));
-
+  final names = List<String>.generate(extensionsCount.value, (i) => props.elementAt(i).ref.extensionName.toDartString(256));
   extensions = NativeStringArray.fromList(names).cast();
 }
 
@@ -186,12 +181,13 @@ void getPhysicalDevice() {
 
   final pphysicalDevices = calloc<Pointer<VkPhysicalDevice>>(physicalDeviceCount);
   vkEnumeratePhysicalDevices(instance, count, pphysicalDevices);
+
   for (var i = 0; i < physicalDeviceCount; i++) {
     final device = pphysicalDevices.elementAt(i).value;
     final physicalDeviceProperties = calloc<VkPhysicalDeviceProperties>();
     vkGetPhysicalDeviceProperties(device, physicalDeviceProperties);
-    var deviceName = '${physicalDeviceProperties.ref.deviceName.toDartString(256)}';
-    var deviceType = '${deviceTypeString(physicalDeviceProperties.ref.deviceType)}';
+    var deviceName = physicalDeviceProperties.ref.deviceName.toDartString(256);
+    var deviceType = deviceTypeString(physicalDeviceProperties.ref.deviceType);
     var version = versionString(physicalDeviceProperties.ref.apiVersion);
 
     Logger().log(Level.info,'check [$deviceName] $deviceType $version');
@@ -204,7 +200,7 @@ void getPhysicalDevice() {
 
 void createSurface() {
   final psurface = calloc<Pointer<VkSurfaceKHR>>();
-  glfwCreateWindowSurface(instance, window, nullptr, psurface);
+  glfwCreateWindowSurface(instance as Pointer<Void>, window, nullptr, psurface as Pointer<Void>);
   surface = psurface.value;
 }
 
@@ -223,8 +219,7 @@ bool isDeviceSuitable(Pointer<VkPhysicalDevice> physicalDevice) {
     }
 
     final presentSupport = calloc<Uint32>();
-    vkGetPhysicalDeviceSurfaceSupportKHR(
-        physicalDevice, i, surface, presentSupport);
+    vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, presentSupport);
     if (presentSupport.value == VK_TRUE) {
       presentFamily = i;
     }
@@ -282,15 +277,12 @@ void getQueues() {
 
 void createSwapChain() {
   final swapChainSupport = querySwapChainSupport(physicalDevice);
-  final surfaceFormat = chooseSwapSurfaceFormat(
-      swapChainSupport.formats, swapChainSupport.formatCount);
-  final presentMode = chooseSwapPresentMode(
-      swapChainSupport.presentModes, swapChainSupport.presentModeCount);
+  final surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats, swapChainSupport.formatCount);
+  final presentMode = chooseSwapPresentMode(swapChainSupport.presentModes, swapChainSupport.presentModeCount);
   final extent = chooseSwapExtent(swapChainSupport.capabilities.ref);
 
   var minImageCount = swapChainSupport.capabilities.ref.minImageCount + 1;
-  if (swapChainSupport.capabilities.ref.maxImageCount > 0 &&
-      minImageCount > swapChainSupport.capabilities.ref.maxImageCount) {
+  if (swapChainSupport.capabilities.ref.maxImageCount > 0 && minImageCount > swapChainSupport.capabilities.ref.maxImageCount) {
     minImageCount = swapChainSupport.capabilities.ref.maxImageCount;
   }
 
@@ -321,8 +313,7 @@ void createSwapChain() {
 
   final pswapChainImage = calloc<Pointer<VkImage>>(swapChainImagesCount);
   vkGetSwapchainImagesKHR(device, swapChain.value, imageCount, pswapChainImage);
-  swapChainImages = List<Pointer<VkImage>>.generate(
-      swapChainImagesCount, (i) => pswapChainImage.elementAt(i).value);
+  swapChainImages = List<Pointer<VkImage>>.generate(swapChainImagesCount, (i) => pswapChainImage.elementAt(i).value);
 
   swapChainImageFormat = surfaceFormat.format;
   swapChainExtent = extent;
@@ -528,8 +519,7 @@ void createGraphicsPipeline() {
     ..basePipelineHandle = nullptr;
 
   final pgraphicsPipeline = calloc<Pointer<VkPipeline>>();
-  vkCreateGraphicsPipelines(
-      device, nullptr, 1, pipelineInfo, nullptr, pgraphicsPipeline);
+  vkCreateGraphicsPipelines(device, nullptr, 1, pipelineInfo, nullptr, pgraphicsPipeline);
   graphicsPipeline = pgraphicsPipeline.value;
 
   vkDestroyShaderModule(device, fragShaderModule.value, nullptr);
@@ -581,7 +571,6 @@ void createCommandBuffers() {
   for (var i = 0; i < swapChainImagesCount; i++) {
     final beginInfo = calloc<VkCommandBufferBeginInfo>();
     beginInfo.ref.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
     vkBeginCommandBuffer(commandBuffers.elementAt(i).value, beginInfo);
 
     final renderPassInfo = calloc<VkRenderPassBeginInfo>();
@@ -598,13 +587,10 @@ void createCommandBuffers() {
             ..ref.float32.fromList([0.0, 0.0, 0.0, 1.0]))
           .cast();
 
-    vkCmdBeginRenderPass(commandBuffers.elementAt(i).value, renderPassInfo,
-        VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffers.elementAt(i).value,
-        VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    vkCmdBeginRenderPass(commandBuffers.elementAt(i).value, renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(commandBuffers.elementAt(i).value, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
     vkCmdDraw(commandBuffers.elementAt(i).value, 3, 1, 0, 0);
     vkCmdEndRenderPass(commandBuffers.elementAt(i).value);
-
     vkEndCommandBuffer(commandBuffers.elementAt(i).value);
   }
 }
@@ -613,8 +599,7 @@ void createSyncObjects() {
   imageAvailableSemaphores = calloc<Pointer<VkSemaphore>>(maxFrames);
   renderFinishedSemaphores = calloc<Pointer<VkSemaphore>>(maxFrames);
   inFlightFences = List<Pointer<Pointer<VkFence>>>.filled(maxFrames, nullptr);
-  imagesInFlight =
-      List<Pointer<Pointer<VkFence>>>.filled(swapChainImagesCount, nullptr);
+  imagesInFlight = List<Pointer<Pointer<VkFence>>>.filled(swapChainImagesCount, nullptr);
 
   final semaphoreInfo = calloc<VkSemaphoreCreateInfo>();
   semaphoreInfo.ref.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -625,10 +610,8 @@ void createSyncObjects() {
     ..flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
   for (var i = 0; i < maxFrames; i++) {
-    vkCreateSemaphore(
-        device, semaphoreInfo, nullptr, imageAvailableSemaphores.elementAt(i));
-    vkCreateSemaphore(
-        device, semaphoreInfo, nullptr, renderFinishedSemaphores.elementAt(i));
+    vkCreateSemaphore(device, semaphoreInfo, nullptr, imageAvailableSemaphores.elementAt(i));
+    vkCreateSemaphore(device, semaphoreInfo, nullptr, renderFinishedSemaphores.elementAt(i));
 
     final pfence = calloc<Pointer<VkFence>>();
     vkCreateFence(device, fenceInfo, nullptr, pfence);
@@ -640,17 +623,10 @@ void draw() {
   vkWaitForFences(device, 1, inFlightFences[currentFrame], VK_TRUE, uint64Max);
 
   final imageIndex = calloc<Int32>();
-  vkAcquireNextImageKHR(
-      device,
-      swapChain.value,
-      uint64Max,
-      imageAvailableSemaphores.elementAt(currentFrame).value,
-      nullptr,
-      imageIndex);
+  vkAcquireNextImageKHR(device, swapChain.value, uint64Max, imageAvailableSemaphores.elementAt(currentFrame).value, nullptr, imageIndex);
 
   if (imagesInFlight[imageIndex.value] != nullptr) {
-    vkWaitForFences(
-        device, 1, imagesInFlight[imageIndex.value], VK_TRUE, uint64Max);
+    vkWaitForFences(device, 1, imagesInFlight[imageIndex.value], VK_TRUE, uint64Max);
   }
   imagesInFlight[imageIndex.value] = inFlightFences[currentFrame];
 
@@ -665,6 +641,7 @@ void draw() {
     ..pWaitDstStageMask = waitStages
     ..commandBufferCount = 1
     ..pCommandBuffers = commandBuffers.elementAt(imageIndex.value);
+
   final signalSemaphores = renderFinishedSemaphores.elementAt(currentFrame);
   submitInfo.ref
     ..signalSemaphoreCount = 1
@@ -685,7 +662,6 @@ void draw() {
     ..pImageIndices = imageIndex;
 
   vkQueuePresentKHR(presentQueue, presentInfo);
-
   currentFrame = (currentFrame + 1) % maxFrames;
 }
 
@@ -697,41 +673,34 @@ class SwapChainSupportDetails {
   late int presentModeCount;
 }
 
-SwapChainSupportDetails querySwapChainSupport(
-    Pointer<VkPhysicalDevice> physicalDevice) {
+SwapChainSupportDetails querySwapChainSupport(Pointer<VkPhysicalDevice> physicalDevice) {
   final details = SwapChainSupportDetails();
   details.capabilities = calloc<VkSurfaceCapabilitiesKHR>();
 
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-      physicalDevice, surface, details.capabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, details.capabilities);
 
   final formatCount = calloc<Uint32>();
-  vkGetPhysicalDeviceSurfaceFormatsKHR(
-      physicalDevice, surface, formatCount, nullptr);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, formatCount, nullptr);
   details.formatCount = formatCount.value;
 
   if (formatCount.value != 0) {
     details.formats = calloc<VkSurfaceFormatKHR>(formatCount.value);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(
-        physicalDevice, surface, formatCount, details.formats);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, formatCount, details.formats);
   }
 
   final presentModeCount = calloc<Uint32>();
-  vkGetPhysicalDeviceSurfacePresentModesKHR(
-      physicalDevice, surface, presentModeCount, nullptr);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, presentModeCount, nullptr);
   details.presentModeCount = presentModeCount.value;
 
   if (presentModeCount.value != 0) {
     details.presentModes = calloc<Int32>(presentModeCount.value);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-        physicalDevice, surface, presentModeCount, details.presentModes);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, presentModeCount, details.presentModes);
   }
 
   return details;
 }
 
-VkSurfaceFormatKHR chooseSwapSurfaceFormat(
-    Pointer<VkSurfaceFormatKHR> availableFormats, int count) {
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(Pointer<VkSurfaceFormatKHR> availableFormats, int count) {
   for (var i = 0; i < count; i++) {
     final availableFormat = availableFormats.elementAt(i).ref;
     if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
@@ -765,17 +734,13 @@ VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR capabilities) {
     actualExtent.width = windowWidth;
     actualExtent.height = windowHeight;
 
-    actualExtent.width = max(capabilities.minImageExtent.width,
-        min(capabilities.maxImageExtent.width, actualExtent.width));
-    actualExtent.height = max(capabilities.minImageExtent.height,
-        min(capabilities.maxImageExtent.height, actualExtent.height));
-
+    actualExtent.width = max(capabilities.minImageExtent.width, min(capabilities.maxImageExtent.width, actualExtent.width));
+    actualExtent.height = max(capabilities.minImageExtent.height, min(capabilities.maxImageExtent.height, actualExtent.height));
     return actualExtent;
   }
 }
 
-void createShaderModule(
-    Pointer<Pointer<VkShaderModule>> shaderModule, List<int> code) {
+void createShaderModule(Pointer<Pointer<VkShaderModule>> shaderModule, List<int> code) {
   final createInfo = calloc<VkShaderModuleCreateInfo>();
   createInfo.ref
     ..sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO

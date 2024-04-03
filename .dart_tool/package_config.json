@@ -122,10 +122,10 @@
       "languageVersion": "2.12"
     },
     {
-      "name": "glfw",
-      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/glfw-0.5.0",
+      "name": "glfw3",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/glfw3-1.2.0",
       "packageUri": "lib/",
-      "languageVersion": "2.14"
+      "languageVersion": "3.2"
     },
     {
       "name": "glob",
@@ -158,6 +158,24 @@
       "languageVersion": "2.19"
     },
     {
+      "name": "leak_tracker",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/leak_tracker-10.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
+      "name": "leak_tracker_flutter_testing",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/leak_tracker_flutter_testing-2.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
+      "name": "leak_tracker_testing",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/leak_tracker_testing-2.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
       "name": "lints",
       "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/lints-3.0.0",
       "packageUri": "lib/",
@@ -177,19 +195,19 @@
     },
     {
       "name": "matcher",
-      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/matcher-0.12.16",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/matcher-0.12.16+1",
       "packageUri": "lib/",
-      "languageVersion": "2.18"
+      "languageVersion": "3.0"
     },
     {
       "name": "material_color_utilities",
-      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/material_color_utilities-0.5.0",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/material_color_utilities-0.8.0",
       "packageUri": "lib/",
       "languageVersion": "2.17"
     },
     {
       "name": "meta",
-      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/meta-1.10.0",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/meta-1.11.0",
       "packageUri": "lib/",
       "languageVersion": "2.12"
     },
@@ -213,9 +231,9 @@
     },
     {
       "name": "path",
-      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/path-1.8.3",
+      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/path-1.9.0",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.0"
     },
     {
       "name": "plugin_platform_interface",
@@ -356,12 +374,6 @@
       "languageVersion": "3.0"
     },
     {
-      "name": "web",
-      "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/web-0.3.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.2"
-    },
-    {
       "name": "web_socket_channel",
       "rootUri": "file:///home/rdemers/.pub-cache/hosted/pub.dev/web_socket_channel-2.4.0",
       "packageUri": "lib/",
@@ -392,7 +404,7 @@
       "languageVersion": "3.2"
     }
   ],
-  "generated": "2024-01-30T16:46:10.815146Z",
+  "generated": "2024-04-03T14:30:10.119020Z",
   "generator": "pub",
-  "generatorVersion": "3.2.6"
+  "generatorVersion": "3.3.3"
 }
